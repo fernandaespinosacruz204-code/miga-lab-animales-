@@ -1,0 +1,577 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MIGA LAB - Aventura Animal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Fredoka para estilo infantil y amigable -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Configuración de fuente base y estilos personalizados para el juego */
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 50%, #A1C4FD 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Animación de flotación suave para los emojis */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(4deg); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Animación de rebote al aparecer elementos */
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Animación de sacudida para respuestas incorrectas */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Estilo de botón 3D táctil para niños */
+        .btn-3d {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.15);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        /* Partículas de confeti */
+        .confetti {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 50;
+            animation: fall 2.5s linear forwards;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <!-- Contenedor Principal (Estilo Tarjeta de Juego Móvil) -->
+    <main id="app-container" class="w-full max-w-md bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border-4 border-white overflow-hidden relative">
+        
+        <!-- Encabezado de Marca MIGA LAB & Control de Sonido -->
+        <header class="bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500 p-4 flex justify-between items-center text-white shadow-md">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl bg-white/20 p-1.5 rounded-xl">🦁</span>
+                <div>
+                    <span class="text-xs font-bold tracking-wider uppercase block opacity-90">MIGA LAB</span>
+                    <h1 class="text-lg font-bold leading-none">Mundo Animal</h1>
+                </div>
+            </div>
+            
+            <!-- Botón de Silenciar/Activar Audio -->
+            <button id="sound-toggle" aria-label="Alternar sonido" class="bg-white/25 hover:bg-white/35 active:scale-95 transition p-2.5 rounded-2xl text-xl shadow-sm">
+                🔊
+            </button>
+        </header>
+
+        <!-- PANTALLA 1: INICIO -->
+        <section id="start-screen" class="p-6 text-center flex flex-col items-center justify-center min-h-[460px]">
+            <div class="text-7xl mb-4 animate-float drop-shadow-md">
+                🐼🦒🐸
+            </div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-2">
+                ¡Hola, Explorador!
+            </h2>
+            <p class="text-slate-600 text-lg mb-8 px-2 leading-relaxed">
+                ¿Cuánto sabes sobre los animales más increíbles del planeta? ¡Pon a prueba tu mente!
+            </p>
+            
+            <button id="start-btn" class="btn-3d w-full py-4 px-6 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white text-2xl font-bold rounded-2xl border-b-4 border-teal-700 flex items-center justify-center gap-3 cursor-pointer">
+                <span>¡JUGAR AHORA!</span>
+                <span class="text-2xl">🚀</span>
+            </button>
+        </section>
+
+        <!-- PANTALLA 2: JUEGO (TRIVIA) -->
+        <section id="game-screen" class="hidden p-5 flex flex-col justify-between min-h-[480px]">
+            <!-- Barra Superior: Progreso y Puntos -->
+            <div>
+                <div class="flex justify-between items-center mb-2 text-sm font-bold text-slate-600">
+                    <span id="question-counter" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">
+                        Pregunta 1/6
+                    </span>
+                    <span id="score-display" class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full flex items-center gap-1">
+                        ⭐ <span id="score-value">0</span> pts
+                    </span>
+                </div>
+                
+                <!-- Barra de Progreso Visual -->
+                <div class="w-full h-3.5 bg-slate-200 rounded-full overflow-hidden p-0.5 mb-5">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500 ease-out" style="width: 16%;"></div>
+                </div>
+            </div>
+
+            <!-- Tarjeta de Pregunta y Emoji Central -->
+            <div id="question-card" class="text-center mb-5 animate-pop">
+                <div id="animal-emoji" class="text-7xl sm:text-8xl mb-3 animate-float inline-block select-none">
+                    🐘
+                </div>
+                <h3 id="question-text" class="text-xl sm:text-2xl font-bold text-slate-800 leading-snug px-1">
+                    ¿Cuál es el animal terrestre más grande del mundo?
+                </h3>
+            </div>
+
+            <!-- Contenedor de Opciones Múltiples -->
+            <div id="options-container" class="grid grid-cols-1 gap-3 mb-2">
+                <!-- Los botones se generan dinámicamente con JS -->
+            </div>
+
+            <!-- Mensaje de Retroalimentación / Dato Curioso -->
+            <div id="feedback-box" class="hidden mt-3 p-3.5 rounded-2xl text-center font-semibold text-base animate-pop">
+                <p id="feedback-text"></p>
+            </div>
+        </section>
+
+        <!-- PANTALLA 3: RESULTADOS FINALES -->
+        <section id="end-screen" class="hidden p-6 text-center flex flex-col items-center justify-center min-h-[460px]">
+            <div id="final-emoji" class="text-8xl mb-3 animate-bounce">
+                🏆
+            </div>
+            <h2 id="final-title" class="text-3xl font-bold text-slate-800 mb-2">
+                ¡Súper Explorador!
+            </h2>
+            <p id="final-message" class="text-slate-600 text-lg mb-6">
+                ¡Completaste toda la aventura animal!
+            </p>
+
+            <!-- Tarjeta de Resumen de Puntuación -->
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-100 rounded-3xl p-5 w-full mb-8 shadow-inner">
+                <span class="text-sm font-bold uppercase tracking-wider text-indigo-400 block mb-1">Puntuación Final</span>
+                <div class="text-5xl font-bold text-indigo-600 flex items-center justify-center gap-2">
+                    <span id="final-score">0</span>
+                    <span class="text-3xl">⭐</span>
+                </div>
+                <p id="correct-count-text" class="text-sm font-semibold text-slate-500 mt-2">
+                    Acertaste 6 de 6 preguntas
+                </p>
+            </div>
+
+            <button id="restart-btn" class="btn-3d w-full py-4 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-xl font-bold rounded-2xl border-b-4 border-indigo-800 flex items-center justify-center gap-2 cursor-pointer">
+                <span>🔄</span>
+                <span>VOLVER A JUGAR</span>
+            </button>
+        </section>
+
+    </main>
+
+    <!-- Lógica del Juego y Sintetizador de Audio -->
+    <script>
+        // ==========================================
+        // 1. BANCO DE PREGUNTAS EDUCATIVAS (ANIMALES)
+        // ==========================================
+        const questions = [
+            {
+                emoji: "🦒",
+                question: "¿Qué animal tiene el cuello súper largo para comer hojas de los árboles altos?",
+                options: ["La Jirafa", "El Hipopótamo", "El Cocodrilo"],
+                correct: 0,
+                fact: "¡Exacto! La lengua de la jirafa mide casi medio metro y es de color azul oscuro."
+            },
+            {
+                emoji: "🐙",
+                question: "¿Cuántos brazos (tentáculos) tiene un pulpo?",
+                options: ["6 brazos", "8 brazos", "10 brazos"],
+                correct: 1,
+                fact: "¡Muy bien! Además de 8 brazos, los pulpos tienen tres corazones."
+            },
+            {
+                emoji: "🦘",
+                question: "¿Qué animal lleva a su bebé dentro de una bolsita en su barriga?",
+                options: ["El Oso Panda", "El Canguro", "El Pingüino"],
+                correct: 1,
+                fact: "¡Genial! Los canguros bebés nacen del tamaño de una gominola."
+            },
+            {
+                emoji: "🐝",
+                question: "¿Qué insecto trabajador fabrica deliciosa miel en su colmena?",
+                options: ["La Mariposa", "La Mariquita", "La Abeja"],
+                correct: 2,
+                fact: "¡Bzzzz! Las abejas bailan para decirles a sus amigas dónde hay flores."
+            },
+            {
+                emoji: "🐧",
+                question: "¿Qué ave usa un traje blanco y negro, no puede volar pero nada muy rápido?",
+                options: ["El Pingüino", "El Tucán", "El Flamenco"],
+                correct: 0,
+                fact: "¡Increíble! Los pingüinos pueden nadar bajo el agua como pequeños torpedos."
+            },
+            {
+                emoji: "🦎",
+                question: "¿Qué reptil famoso puede cambiar el color de su piel para esconderse?",
+                options: ["La Tortuga", "El Camaleón", "La Iguana"],
+                correct: 1,
+                fact: "¡Fantástico! Sus ojos pueden mirar en dos direcciones diferentes al mismo tiempo."
+            }
+        ];
+
+        // ==========================================
+        // 2. SISTEMA DE SONIDO (WEB AUDIO API)
+        // ==========================================
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            // Inicializa el contexto de audio tras la primera interacción del usuario
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                return this.muted;
+            }
+
+            // Sonido suave de clic al tocar botones
+            playClick() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(520, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.08);
+                
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            // Melodía alegre de acierto (Arpegio ascendente)
+            playSuccess() {
+                if (this.muted) return;
+                this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // Do5, Mi5, Sol5, Do6
+                notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const startTime = this.ctx.currentTime + (index * 0.09);
+                    
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    
+                    gain.gain.setValueAtTime(0.2, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.25);
+                });
+            }
+
+            // Sonido amigable y suave de error (sin asustar)
+            playError() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(220, this.ctx.currentTime + 0.28);
+                
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+
+            // Fanfarria de victoria al terminar el juego
+            playVictory() {
+                if (this.muted) return;
+                this.init();
+                const melody = [
+                    { freq: 523.25, time: 0, dur: 0.15 },    // Do
+                    { freq: 659.25, time: 0.15, dur: 0.15 }, // Mi
+                    { freq: 783.99, time: 0.30, dur: 0.15 }, // Sol
+                    { freq: 1046.50, time: 0.45, dur: 0.4 }, // Do alto
+                    { freq: 783.99, time: 0.70, dur: 0.15 }, // Sol
+                    { freq: 1046.50, time: 0.85, dur: 0.5 }  // Do alto final
+                ];
+
+                melody.forEach(note => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const start = this.ctx.currentTime + note.time;
+                    
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(note.freq, start);
+                    
+                    gain.gain.setValueAtTime(0.22, start);
+                    gain.gain.exponentialRampToValueAtTime(0.01, start + note.dur);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(start);
+                    osc.stop(start + note.dur);
+                });
+            }
+        }
+
+        // ==========================================
+        // 3. ESTADO Y CONTROLADOR DEL JUEGO
+        // ==========================================
+        const sfx = new SoundEffects();
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let correctAnswersCount = 0;
+        let isAnswering = false;
+
+        // Referencias al DOM
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const soundToggleBtn = document.getElementById('sound-toggle');
+
+        const questionCounter = document.getElementById('question-counter');
+        const scoreValue = document.getElementById('score-value');
+        const progressBar = document.getElementById('progress-bar');
+        const animalEmoji = document.getElementById('animal-emoji');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const feedbackBox = document.getElementById('feedback-box');
+        const feedbackText = document.getElementById('feedback-text');
+
+        // Colores vibrantes para las opciones de respuesta
+        const optionStyles = [
+            "bg-sky-50 hover:bg-sky-100 border-sky-300 text-sky-900",
+            "bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900",
+            "bg-fuchsia-50 hover:bg-fuchsia-100 border-fuchsia-300 text-fuchsia-900"
+        ];
+        const optionBadges = ["A", "B", "C"];
+
+        // Iniciar el juego
+        function startGame() {
+            sfx.playClick();
+            currentQuestionIndex = 0;
+            score = 0;
+            correctAnswersCount = 0;
+            updateScoreUI();
+
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+
+            loadQuestion();
+        }
+
+        // Cargar la pregunta actual en pantalla
+        function loadQuestion() {
+            isAnswering = true;
+            feedbackBox.classList.add('hidden');
+            
+            const currentQ = questions[currentQuestionIndex];
+            
+            // Actualizar textos y barra de progreso
+            questionCounter.textContent = `Pregunta ${currentQuestionIndex + 1}/${questions.length}`;
+            const progressPercent = ((currentQuestionIndex) / questions.length) * 100;
+            progressBar.style.width = `${Math.max(12, progressPercent)}%`;
+
+            // Animar entrada de pregunta
+            const qCard = document.getElementById('question-card');
+            qCard.classList.remove('animate-pop');
+            void qCard.offsetWidth; // Reiniciar animación CSS
+            qCard.classList.add('animate-pop');
+
+            animalEmoji.textContent = currentQ.emoji;
+            questionText.textContent = currentQ.question;
+
+            // Generar botones de opciones grandes para móvil
+            optionsContainer.innerHTML = '';
+            currentQ.options.forEach((optionText, index) => {
+                const btn = document.createElement('button');
+                btn.className = `btn-3d w-full p-4 rounded-2xl border-2 border-b-4 text-left font-bold text-lg sm:text-xl flex items-center gap-3 cursor-pointer ${optionStyles[index]}`;
+                
+                btn.innerHTML = `
+                    <span class="w-9 h-9 rounded-xl bg-white/80 flex items-center justify-center text-base font-extrabold shadow-sm shrink-0">
+                        ${optionBadges[index]}
+                    </span>
+                    <span class="leading-tight">${optionText}</span>
+                `;
+
+                btn.addEventListener('click', () => handleAnswer(index, btn));
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        // Validar la respuesta elegida
+        function handleAnswer(selectedIndex, selectedBtn) {
+            if (!isAnswering) return;
+            isAnswering = false;
+
+            const currentQ = questions[currentQuestionIndex];
+            const allButtons = optionsContainer.querySelectorAll('button');
+            const isCorrect = selectedIndex === currentQ.correct;
+
+            // Deshabilitar clics extra
+            allButtons.forEach(btn => btn.style.pointerEvents = 'none');
+
+            if (isCorrect) {
+                // Acierto
+                sfx.playSuccess();
+                score += 100;
+                correctAnswersCount++;
+                updateScoreUI();
+
+                selectedBtn.className = "btn-3d w-full p-4 rounded-2xl border-2 border-b-4 bg-emerald-500 border-emerald-700 text-white text-left font-bold text-lg sm:text-xl flex items-center justify-between animate-pop";
+                selectedBtn.innerHTML += `<span class="text-2xl">✅</span>`;
+
+                showFeedback(true, currentQ.fact);
+                launchConfetti(20);
+            } else {
+                // Error suave
+                sfx.playError();
+                selectedBtn.className = "btn-3d w-full p-4 rounded-2xl border-2 border-b-4 bg-rose-500 border-rose-700 text-white text-left font-bold text-lg sm:text-xl flex items-center justify-between animate-shake";
+                selectedBtn.innerHTML += `<span class="text-2xl">❌</span>`;
+
+                // Resaltar cuál era la correcta
+                const correctBtn = allButtons[currentQ.correct];
+                correctBtn.className = "btn-3d w-full p-4 rounded-2xl border-2 border-b-4 bg-emerald-100 border-emerald-500 text-emerald-900 text-left font-bold text-lg sm:text-xl flex items-center justify-between";
+                correctBtn.innerHTML += `<span class="text-xl">🌟</span>`;
+
+                showFeedback(false, `¡Casi! ${currentQ.fact}`);
+            }
+
+            // Avanzar automáticamente después de leer el dato curioso
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < questions.length) {
+                    loadQuestion();
+                } else {
+                    finishGame();
+                }
+            }, 2600);
+        }
+
+        // Mostrar tarjeta de dato curioso
+        function showFeedback(isSuccess, message) {
+            feedbackBox.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-900', 'bg-amber-100', 'text-amber-900');
+            if (isSuccess) {
+                feedbackBox.classList.add('bg-emerald-100', 'text-emerald-900', 'border', 'border-emerald-300');
+            } else {
+                feedbackBox.classList.add('bg-amber-100', 'text-amber-900', 'border', 'border-amber-300');
+            }
+            feedbackText.textContent = message;
+        }
+
+        // Actualizar marcador
+        function updateScoreUI() {
+            scoreValue.textContent = score;
+        }
+
+        // Pantalla final de resultados
+        function finishGame() {
+            progressBar.style.width = '100%';
+            sfx.playVictory();
+            launchConfetti(50);
+
+            gameScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            endScreen.classList.add('animate-pop');
+
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('correct-count-text').textContent = `Acertaste ${correctAnswersCount} de ${questions.length} preguntas`;
+
+            const finalTitle = document.getElementById('final-title');
+            const finalMessage = document.getElementById('final-message');
+            const finalEmoji = document.getElementById('final-emoji');
+
+            if (correctAnswersCount === questions.length) {
+                finalEmoji.textContent = "👑";
+                finalTitle.textContent = "¡Genio Animal!";
+                finalMessage.textContent = "¡Increíble! Respondiste todas las preguntas perfectamente.";
+            } else if (correctAnswersCount >= 4) {
+                finalEmoji.textContent = "🏆";
+                finalTitle.textContent = "¡Súper Explorador!";
+                finalMessage.textContent = "¡Sabes muchísimo sobre el reino animal!";
+            } else {
+                finalEmoji.textContent = "🌟";
+                finalTitle.textContent = "¡Buen Trabajo!";
+                finalMessage.textContent = "¡Sigue jugando para aprender más curiosidades!";
+            }
+        }
+
+        // Efecto visual de confeti colorido
+        function launchConfetti(amount) {
+            const colors = ['#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93', '#FF99C8'];
+            for (let i = 0; i < amount; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = `${1.5 + Math.random() * 1.5}s`;
+                document.body.appendChild(confetti);
+
+                setTimeout(() => {
+                    confetti.remove();
+                }, 3000);
+            }
+        }
+
+        // Eventos de botones principales
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+        
+        soundToggleBtn.addEventListener('click', () => {
+            const isMuted = sfx.toggleMute();
+            soundToggleBtn.textContent = isMuted ? '🔇' : '🔊';
+            if (!isMuted) sfx.playClick();
+        });
+    </script>
+</body>
+</html>
+```
