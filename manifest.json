@@ -1,8 +1,0 @@
-{
-  "name": "MIGA LAB Mundo Animal",
-  "short_name": "MIGA LAB",
-  "start_url": "./indice.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ff7e5f"
-}
